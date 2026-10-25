@@ -25,6 +25,14 @@ import { TaskFormDialog } from "@/components/planner/task-form-dialog"
 import { MobileConnectDialog } from "@/components/planner/mobile-connect-dialog"
 import { ThemeToggle } from "@/components/planner/theme-toggle"
 import { UserMenu } from "@/components/planner/user-menu"
+import { FirebaseDialog } from "@/components/planner/firebase-dialog"
+import { isFirebaseConfigured } from "@/lib/firebase"
+import {
+  subscribeToUserTasks,
+  saveTaskToFirestore,
+  deleteTaskFromFirestore,
+  bulkUploadTasksToFirestore,
+} from "@/lib/firestore-service"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -51,31 +59,61 @@ export default function PlannerPage() {
     setTasks(loaded)
   }, [])
 
-  // Sync to localStorage on change
-  const updateTasks = (newTasks: Task[]) => {
+  // Subscribe to real-time Firestore updates
+  useEffect(() => {
+    if (!user || user.isGuest || !isFirebaseConfigured()) return
+
+    const unsubscribe = subscribeToUserTasks(user.id, (firestoreTasks) => {
+      if (firestoreTasks.length > 0) {
+        setTasks(firestoreTasks)
+        saveTasksToStorage(firestoreTasks)
+      }
+    })
+
+    return () => unsubscribe()
+  }, [user?.id, user?.isGuest])
+
+  // Sync to localStorage and Firestore
+  const updateTasks = (newTasks: Task[], changedTask?: Task, deletedId?: string) => {
     setTasks(newTasks)
     saveTasksToStorage(newTasks)
+
+    if (user && !user.isGuest && isFirebaseConfigured()) {
+      if (changedTask) {
+        saveTaskToFirestore(user.id, changedTask)
+      } else if (deletedId) {
+        deleteTaskFromFirestore(user.id, deletedId)
+      } else {
+        bulkUploadTasksToFirestore(user.id, newTasks)
+      }
+    }
   }
 
   // Toggle completed
   const handleToggleTask = (id: string) => {
+    let changed: Task | undefined
     const next = tasks.map((t) => {
       if (t.id === id) {
         const completed = !t.completed
-        return {
+        changed = {
           ...t,
           completed,
           completedAt: completed ? Date.now() : undefined,
         }
+        return changed
       }
       return t
     })
-    updateTasks(next)
+    updateTasks(next, changed)
   }
 
   // Delete task
   const handleDeleteTask = (id: string) => {
-    updateTasks(tasks.filter((t) => t.id !== id))
+    updateTasks(
+      tasks.filter((t) => t.id !== id),
+      undefined,
+      id
+    )
   }
 
   // Move a single task to tomorrow
@@ -108,23 +146,24 @@ export default function PlannerPage() {
   // Save (add or edit) from dialog
   const handleSaveTask = (taskData: Omit<Task, "id" | "createdAt"> & { id?: string }) => {
     if (taskData.id) {
-      // Edit
-      const next = tasks.map((t) =>
-        t.id === taskData.id
-          ? {
-              ...t,
-              title: taskData.title,
-              notes: taskData.notes,
-              priority: taskData.priority,
-              category: taskData.category,
-              time: taskData.time,
-              date: taskData.date,
-            }
-          : t
-      )
-      updateTasks(next)
+      let updated: Task | undefined
+      const next = tasks.map((t) => {
+        if (t.id === taskData.id) {
+          updated = {
+            ...t,
+            title: taskData.title,
+            notes: taskData.notes,
+            priority: taskData.priority,
+            category: taskData.category,
+            time: taskData.time,
+            date: taskData.date,
+          }
+          return updated
+        }
+        return t
+      })
+      updateTasks(next, updated)
     } else {
-      // Create
       const newTask: Task = {
         id: "task-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
         title: taskData.title,
@@ -136,7 +175,7 @@ export default function PlannerPage() {
         completed: false,
         createdAt: Date.now(),
       }
-      updateTasks([newTask, ...tasks])
+      updateTasks([newTask, ...tasks], newTask)
     }
   }
 
@@ -159,7 +198,7 @@ export default function PlannerPage() {
       createdAt: Date.now(),
     }
 
-    updateTasks([newTask, ...tasks])
+    updateTasks([newTask, ...tasks], newTask)
     setQuickTitle("")
   }
 
@@ -259,6 +298,7 @@ export default function PlannerPage() {
             >
               <Search className="size-4" />
             </Button>
+            <FirebaseDialog />
             <MobileConnectDialog localIp="192.168.178.65" />
             <ThemeToggle />
             <UserMenu />
