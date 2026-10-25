@@ -2,7 +2,7 @@
 
 A modern, fast, mobile-first **Daily Planner** with priority checklists, smart categorization, and zero-setup offline storage. Built with **Next.js 16 (Turbopack)**, **Tailwind CSS 4**, and **shadcn/ui**.
 
-Live Deployment: [https://snappy-walnut-xv4mukl.tmp.now](https://snappy-walnut-xv4mukl.tmp.now)
+Live Deployment: [https://mydailyplanner-app.vercel.app](https://mydailyplanner-app.vercel.app)
 
 ---
 
