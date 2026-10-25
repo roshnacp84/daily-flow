@@ -54,8 +54,8 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
         await signUpWithEmail(name, email, password)
       }
       onOpenChange(false)
-    } catch {
-      setError("Authentication failed. Please try again.")
+    } catch (err: any) {
+      setError(err?.message || "Authentication failed. Please try again.")
     } finally {
       setSubmitting(false)
     }
@@ -66,8 +66,8 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
       setSubmitting(true)
       await signInWithProvider(provider)
       onOpenChange(false)
-    } catch {
-      setError("Social login failed. Please try again.")
+    } catch (err: any) {
+      setError(err?.message || "Social login failed. Please try again.")
     } finally {
       setSubmitting(false)
     }
