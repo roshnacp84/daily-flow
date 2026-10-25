@@ -24,10 +24,13 @@ import { TaskItem } from "@/components/planner/task-item"
 import { TaskFormDialog } from "@/components/planner/task-form-dialog"
 import { MobileConnectDialog } from "@/components/planner/mobile-connect-dialog"
 import { ThemeToggle } from "@/components/planner/theme-toggle"
+import { UserMenu } from "@/components/planner/user-menu"
+import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 export default function PlannerPage() {
+  const { user } = useAuth()
   const [tasks, setTasks] = useState<Task[]>([])
   const [selectedDate, setSelectedDate] = useState<string>(getTodayDateString())
   const [selectedCategory, setSelectedCategory] = useState<Category>("all")
@@ -258,6 +261,7 @@ export default function PlannerPage() {
             </Button>
             <MobileConnectDialog localIp="192.168.178.65" />
             <ThemeToggle />
+            <UserMenu />
           </div>
         </header>
 
